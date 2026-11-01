@@ -1,5 +1,39 @@
 'use strict';
 
+// ===== 运行时连接设置（URL / anon key / 看板密码 都只存在本机浏览器，不写进代码）=====
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function openSetupModal(resolve) {
+  const modal = $('#setupModal');
+  modal.classList.add('show');
+  const form = $('#setupForm');
+  form.sbUrl.value = localStorage.getItem('sb_url') || '';
+  form.sbKey.value = localStorage.getItem('sb_key') || '';
+  form.pwd.value = localStorage.getItem('board_pwd') || '';
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const url = form.sbUrl.value.trim();
+    const key = form.sbKey.value.trim();
+    const pwd = form.pwd.value;
+    if (!url || !key || !pwd) { toast('三项都要填', 'err'); return; }
+    localStorage.setItem('sb_url', url);
+    localStorage.setItem('sb_key', key);
+    localStorage.setItem('board_pwd', pwd);
+    localStorage.setItem('board_hash', await sha256(pwd));
+    modal.classList.remove('show');
+    resolve();
+  };
+}
+function ensureSetup() {
+  return new Promise(resolve => {
+    const ok = localStorage.getItem('sb_url') && localStorage.getItem('sb_key') && localStorage.getItem('board_pwd');
+    if (ok) return resolve();
+    openSetupModal(resolve);
+  });
+}
+
 const URGENCY = {
   1: { label: '不急', color: 'var(--u1)' },
   2: { label: '较低', color: 'var(--u2)' },
@@ -328,7 +362,8 @@ function init() {
   $('#filterStatus').addEventListener('change', e => { state.filterStatus = e.target.value; renderBoard(); });
   $('#search').addEventListener('input', e => { state.search = e.target.value.trim(); renderBoard(); });
 
-  load().catch(err => toast(err.message, 'err'));
+  $('#openSetup').addEventListener('click', () => openSetupModal(() => load()));
+  ensureSetup().then(() => load()).catch(err => toast(err.message, 'err'));
 }
 
 document.addEventListener('DOMContentLoaded', init);
