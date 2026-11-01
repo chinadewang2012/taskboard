@@ -141,7 +141,7 @@
   }
   function ghHeaders(extra) {
     return Object.assign({
-      Authorization: `Bearer ${CFG.GITHUB_TOKEN}`,
+      Authorization: `Bearer ${((typeof localStorage !== 'undefined' && localStorage.github_token) || CFG.GITHUB_TOKEN)}`,
       Accept: 'application/vnd.github+json',
       'User-Agent': 'taskboard'
     }, extra || {});
