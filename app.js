@@ -26,13 +26,25 @@ const $ = sel => document.querySelector(sel);
 // 数据读写统一走 public/store.js（本机模式 / Supabase 云端模式）
 
 async function load() {
-  const data = await store.list();
-  state.tasks = data.tasks;
-  state.limits = data.limits;
-  state.counts = data.counts;
-  state.dbSizeMb = data.dbSizeMb || 0;
-  state.maxDbMb = data.maxDbMb || 0;
-  render();
+  // GitHub 模式：首次打开时让用户在浏览器里填入 PAT（只存在本机，不进仓库）
+  if (window.APP_CONFIG && window.APP_CONFIG.STORAGE === 'github') {
+    const haveToken = (typeof localStorage !== 'undefined' && localStorage.github_token) || window.APP_CONFIG.GITHUB_TOKEN;
+    if (!haveToken) {
+      const t = prompt('请输入 GitHub Personal Access Token（仅读写你自己的仓库数据，只存在本机浏览器，不会上传）：');
+      if (t && t.trim()) { try { localStorage.github_token = t.trim(); } catch (e) {} }
+    }
+  }
+  try {
+    const data = await store.list();
+    state.tasks = data.tasks;
+    state.limits = data.limits;
+    state.counts = data.counts;
+    state.dbSizeMb = data.dbSizeMb || 0;
+    state.maxDbMb = data.maxDbMb || 0;
+    render();
+  } catch (e) {
+    toast('加载失败：' + e.message, 'error');
+  }
 }
 
 // ---------- 工具 ----------
