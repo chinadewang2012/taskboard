@@ -1,13 +1,5 @@
 {
-  "tasks": [
-    {
-      "id": "mvxyz827j3av69",
-      "status": "pending",
-      "createdAt": "2026-11-01T15:13:16.687Z",
-      "title": "探针测试",
-      "urgency": 3
-    }
-  ],
+  "tasks": [],
   "limits": {
     "maxTotal": 200,
     "perUrgency": {
