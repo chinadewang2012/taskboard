@@ -16,6 +16,7 @@
       </div>
     </div>
     <div class="top-actions">
+      <button class="btn ghost" id="openSetup">🔧 设置</button>
       <button class="btn ghost" id="openLimits">⚙ 任务限制</button>
       <button class="btn primary" id="openAdd">＋ 添加任务</button>
     </div>
@@ -90,6 +91,26 @@
         <div class="modal-actions">
           <button type="button" class="btn ghost" data-close>取消</button>
           <button type="submit" class="btn primary">保存限制</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 连接设置 弹窗 -->
+  <div class="modal" id="setupModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>连接设置</h3>
+        <button class="icon" data-close>×</button>
+      </div>
+      <form id="setupForm">
+        <label>Supabase 项目地址（URL）<input name="sbUrl" placeholder="https://xxxx.supabase.co"></label>
+        <label>Anon Key（sb_publishable_ 开头）<input name="sbKey" placeholder="sb_publishable_..."></label>
+        <label>看板密码（用于数据隔离，请牢记）<input name="pwd" type="password"></label>
+        <p class="hint">三项只保存在你本机浏览器，不会上传。相同密码 = 同一看板；不同密码 = 互相隔离的不同看板。</p>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" data-close>取消</button>
+          <button type="submit" class="btn primary">保存并连接</button>
         </div>
       </form>
     </div>
