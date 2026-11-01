@@ -57,13 +57,23 @@
   };
 
   // ================= 模式二：Supabase 云端（免费） =================
+  // 运行时从 localStorage 读取（网页「设置」里填的），不写死在代码里
+  function sbCfg(k) {
+    try { return (typeof localStorage !== 'undefined' && localStorage[k]) || CFG['SUPABASE_' + k.toUpperCase()]; }
+    catch (e) { return CFG['SUPABASE_' + k.toUpperCase()]; }
+  }
+  function boardHash() {
+    return (typeof localStorage !== 'undefined' && localStorage.board_hash) || '';
+  }
   function sbUrl(p) {
-    return String(CFG.SUPABASE_URL || '').replace(/\/+$/, '') + '/rest/v1/' + p;
+    return String(sbCfg('url') || '').replace(/\/+$/, '') + '/rest/v1/' + p;
   }
   function sbHeaders(extra) {
+    const key = sbCfg('key') || '';
     return Object.assign({
-      apikey: CFG.SUPABASE_KEY,
-      Authorization: 'Bearer ' + CFG.SUPABASE_KEY,
+      apikey: key,
+      Authorization: 'Bearer ' + key,
+      'x-board': boardHash() || undefined,
       'Content-Type': 'application/json'
     }, extra || {});
   }
@@ -79,7 +89,8 @@
     urgency: t.urgency, due_date: t.dueDate || null,
     status: t.status || 'pending',
     created_at: t.createdAt || new Date().toISOString(),
-    completed_at: t.completedAt || null
+    completed_at: t.completedAt || null,
+    board: boardHash()
   });
   function toRowPatch(p) {
     const o = {};
@@ -96,9 +107,10 @@
 
   const supabaseAdapter = {
     async list() {
+      const h = boardHash();
       const [rows, settings] = await Promise.all([
-        request('GET', sbUrl('tasks?select=*')),
-        request('GET', sbUrl('settings?select=*&id=eq.1'))
+        request('GET', sbUrl('tasks?select=*&board=eq.' + encodeURIComponent(h))),
+        request('GET', sbUrl('settings?select=*&id=eq.1&board=eq.' + encodeURIComponent(h)))
       ]);
       const list = (rows || []).map(fromRow);
       const s = (settings && settings[0]) || {};
@@ -115,16 +127,25 @@
       return { task: (rows && rows[0]) ? fromRow(rows[0]) : task };
     },
     async update(id, patch) {
-      const rows = await request('PATCH', sbUrl('tasks?id=eq.' + encodeURIComponent(id)), toRowPatch(patch), { Prefer: 'return=representation' });
+      const h = boardHash();
+      const rows = await request('PATCH', sbUrl('tasks?id=eq.' + encodeURIComponent(id) + '&board=eq.' + encodeURIComponent(h)), toRowPatch(patch), { Prefer: 'return=representation' });
       return { task: (rows && rows[0]) ? fromRow(rows[0]) : Object.assign({ id: id }, patch) };
     },
     async remove(id) {
-      await request('DELETE', sbUrl('tasks?id=eq.' + encodeURIComponent(id)));
+      const h = boardHash();
+      await request('DELETE', sbUrl('tasks?id=eq.' + encodeURIComponent(id) + '&board=eq.' + encodeURIComponent(h)));
       return { ok: true };
     },
     async setLimits(l) {
-      await request('PATCH', sbUrl('settings?id=eq.1'),
-        { max_total: l.maxTotal, per_urgency: l.perUrgency }, { Prefer: 'return=representation' });
+      const h = boardHash();
+      const existing = await request('GET', sbUrl('settings?select=*&id=eq.1&board=eq.' + encodeURIComponent(h)));
+      if (existing && existing.length) {
+        await request('PATCH', sbUrl('settings?id=eq.1&board=eq.' + encodeURIComponent(h)),
+          { max_total: l.maxTotal, per_urgency: l.perUrgency }, { Prefer: 'return=representation' });
+      } else {
+        await request('POST', sbUrl('settings'),
+          { id: 1, board: h, max_total: l.maxTotal, per_urgency: l.perUrgency });
+      }
       return { limits: l };
     }
   };
