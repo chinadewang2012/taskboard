@@ -3,8 +3,11 @@
  *
  * STORAGE 三种模式：
  *   'local'    —— 数据在你自己电脑（需要运行 server.js）。电脑关机就用不了。
- *   'supabase' —— 数据放 Supabase 云端（500MB 免费，国内网络可能连不上）。
- *   'github'   —— 数据放你的 GitHub 仓库（免费 / 国内可访问 / 关机不影响），推荐。
+ *   'supabase' —— 数据放 Supabase 云端（免费 / 手机任意设备可用 / 关机不影响），推荐。
+ *   'github'   —— 数据放你的 GitHub 仓库（备用方案）。
+ *
+ * 重要：本文件不再写死任何密钥。Supabase 的 URL / anon key / 看板密码
+ *       都在网页「设置」里填，只保存在你本机浏览器（localStorage），不会上传。
  */
 (function () {
   var LOCAL_API = 'http://localhost:3000/api';
@@ -15,27 +18,25 @@
   window.APP_CONFIG = {
     // ============ 存储模式 ============
     //  'local'    数据在你电脑（需跑 server.js）
-    //  'github'   数据放你的 GitHub 仓库（免费 / 国内可访问 / 关机不影响）—— 备选
-    //  'supabase' 数据放 Supabase 云端（已填好 anon key，数据在云端、关机可用）
-    STORAGE: 'github',
+    //  'supabase' 数据放 Supabase 云端（在网页「设置」里填连接，关机可用）—— 推荐
+    //  'github'   数据放你的 GitHub 仓库（备用）
+    STORAGE: 'supabase',
 
     // ---- local 模式用 ----
-    // 留空 = 本机页面走同源 /api；外网页面（如 GitHub Pages）自动指向本机 localhost:3000
     API_BASE: isLocalPage ? '' : LOCAL_API,
 
-    // ---- github 模式用（推荐，免费云端）----
-    //  GITHUB_REPO:  "用户名/仓库名"，例 'zhangsan/taskboard'
-    //  GITHUB_TOKEN: 有 contents 写权限的 token（GitHub → Settings → Developer settings → PAT）
-    //  调试好 GitHub 后，把上方 STORAGE 改成 'github' 即可
-    GITHUB_REPO: 'chinadewang2012/taskboard',
-    GITHUB_TOKEN: '',  // 留空：打开页面时浏览器会提示你输入（只存在你本机浏览器，不进仓库）
+    // ---- github 模式用（备用）----
+    GITHUB_REPO: '',
+    GITHUB_TOKEN: '',
     GITHUB_DATA_PATH: 'data.json',
     GITHUB_BRANCH: 'main',
-    GITHUB_MAX_MB: 100,   // 仅用于页面显示「数据占用 / 上限」
+    GITHUB_MAX_MB: 100,
 
-    // ---- supabase 模式用（已填好，能连通用时把 STORAGE 改成 'supabase'）----
-    SUPABASE_URL: 'https://cuzeodtrzyiekuzbhnfw.supabase.co',
-    SUPABASE_KEY: 'sb_publishable_I1yX06B_DKKGxQ9Jz-65PA_7fUx6zVv',
+    // ---- supabase 模式用 ----
+    // 下面两项留空：运行时在网页「设置」里填（不写死在代码，避免泄露）。
+    // 填的是你的 Supabase 项目地址 + anon key（sb_publishable_ 开头，允许放前端）。
+    SUPABASE_URL: '',
+    SUPABASE_KEY: '',
     SUPABASE_MAX_MB: 500
   };
 })();
