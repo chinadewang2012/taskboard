@@ -11,7 +11,7 @@ function openSetupModal(resolve) {
   const form = $('#setupForm');
   form.sbUrl.value = localStorage.getItem('sb_url') || '';
   form.sbKey.value = localStorage.getItem('sb_key') || '';
-  form.pwd.value = localStorage.getItem('board_pwd') || '';
+  form.pwd.value = '';  // 出于安全，不回显明文密码
   form.onsubmit = async (e) => {
     e.preventDefault();
     const url = form.sbUrl.value.trim();
@@ -20,15 +20,14 @@ function openSetupModal(resolve) {
     if (!url || !key || !pwd) { toast('三项都要填', 'err'); return; }
     localStorage.setItem('sb_url', url);
     localStorage.setItem('sb_key', key);
-    localStorage.setItem('board_pwd', pwd);
-    localStorage.setItem('board_hash', await sha256(pwd));
+    localStorage.setItem('board_hash', await sha256(pwd)); // 只存密码哈希，不存明文
     modal.classList.remove('show');
     resolve();
   };
 }
 function ensureSetup() {
   return new Promise(resolve => {
-    const ok = localStorage.getItem('sb_url') && localStorage.getItem('sb_key') && localStorage.getItem('board_pwd');
+    const ok = localStorage.getItem('sb_url') && localStorage.getItem('sb_key') && localStorage.getItem('board_hash');
     if (ok) return resolve();
     openSetupModal(resolve);
   });
