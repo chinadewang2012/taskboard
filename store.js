@@ -1,9 +1,10 @@
 /**
  * 统一数据层 —— 前端只跟 store 打交道，不用关心数据存在哪。
  *
- * 两种存储模式（由 public/config.js 的 STORAGE 决定）：
+ * 三种存储模式（由 public/config.js 的 STORAGE 决定）：
  *   local    —— 数据在你自己的电脑（需要运行 server.js）
  *   supabase —— 数据放 Supabase 免费云端数据库（手机/任意设备可用，电脑关机也不影响）
+ *   github   —— 数据放 GitHub 仓库（备用方案）
  */
 (function () {
   const CFG = window.APP_CONFIG || {};
@@ -36,7 +37,13 @@
         : '无法连接数据服务：请确认已在你电脑上启动 server.js（http://localhost:3000）');
     }
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((data.error || data.message || '请求失败') + ' (HTTP ' + res.status + ')');
+    if (!res.ok) {
+      let msg = (data.error || data.message || '请求失败');
+      if (MODE === 'supabase' && res.status === 404) {
+        msg = '数据表不存在：请确认已在 Supabase 执行 supabase.sql 建表，并在 SQL Editor 运行 NOTIFY pgrst, \'reload schema\'; 刷新缓存';
+      }
+      throw new Error(msg + ' (HTTP ' + res.status + ')');
+    }
     return data;
   }
 
@@ -66,16 +73,21 @@
     return (typeof localStorage !== 'undefined' && localStorage.board_hash) || '';
   }
   function sbUrl(p) {
-    return String(sbCfg('url') || '').replace(/\/+$/, '') + '/rest/v1/' + p;
+    const raw = String(sbCfg('url') || '').trim();
+    let origin;
+    try { origin = new URL(raw).origin; } catch (e) { origin = raw.replace(/\/+$/, ''); }
+    return origin.replace(/\/+$/, '') + '/rest/v1/' + p;
   }
   function sbHeaders(extra) {
     const key = sbCfg('key') || '';
-    return Object.assign({
+    const h = boardHash();
+    const headers = {
       apikey: key,
       Authorization: 'Bearer ' + key,
-      'x-board': boardHash() || undefined,
       'Content-Type': 'application/json'
-    }, extra || {});
+    };
+    if (h) headers['x-board'] = h; // 仅在有看板密码时带，避免发送 undefined header
+    return Object.assign(headers, extra || {});
   }
 
   // 数据库列名用 snake_case，前端用驼峰，这里做映射
@@ -201,7 +213,8 @@
       cache.tasks = all.tasks; cache.limits = all.limits;  // 同步缓存，供限制校验使用
       return all;
     },
-    async writeAll(obj) {
+    async writeAll(obj, depth = 0) {
+      if (depth > 3) throw new Error('写入 GitHub 仓库冲突过多，请稍后重试');
       const body = {
         message: 'taskboard sync',
         content: utf8ToB64(JSON.stringify(obj, null, 2)),
@@ -212,10 +225,10 @@
         const r = await request('PUT', ghContentPath().split('?')[0], body, ghHeaders());
         this._sha = r.content && r.content.sha;
       } catch (e) {
-        if (/HTTP 409/.test(e.message)) {   // 版本冲突：重新拉取再写一次
+        if (/HTTP 409/.test(e.message)) {   // 版本冲突：重新拉取再写一次（最多 3 次）
           this._sha = null;
           await this.readAll();
-          return this.writeAll(obj);
+          return this.writeAll(obj, depth + 1);
         }
         throw new Error('写入 GitHub 仓库失败：' + e.message);
       }
