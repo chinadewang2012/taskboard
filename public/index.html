@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>轻重缓急 · 任务到期看板</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">⏳</span>
+      <div>
+        <h1>轻重缓急 · 任务到期看板</h1>
+        <p class="sub">按紧急分档 · 按到期排序 · 内网常驻</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost" id="openSetup">🔧 设置</button>
+      <button class="btn ghost" id="openLimits">⚙ 任务限制</button>
+      <button class="btn primary" id="openAdd">＋ 添加任务</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 统计 -->
+    <section class="stats" id="stats"></section>
+
+    <!-- 工具栏 -->
+    <section class="toolbar">
+      <div class="view-switch">
+        <button class="seg active" data-view="list">📋 列表（最近到期）</button>
+        <button class="seg" data-view="board">🗂 看板（按紧急）</button>
+      </div>
+      <div class="filters">
+        <select id="filterUrgency">
+          <option value="all">全部紧急度</option>
+        </select>
+        <select id="filterStatus">
+          <option value="all">全部状态</option>
+          <option value="pending">仅待办</option>
+          <option value="done">仅已完成</option>
+        </select>
+        <input id="search" type="search" placeholder="🔍 搜索任务…" />
+      </div>
+    </section>
+
+    <!-- 内容区 -->
+    <section id="board"></section>
+    <p class="empty" id="emptyHint" hidden>暂无符合条件的任务</p>
+  </main>
+
+  <!-- 添加 / 编辑 任务 弹窗 -->
+  <div class="modal" id="taskModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="taskModalTitle">添加任务</h3>
+        <button class="icon" data-close>×</button>
+      </div>
+      <form id="taskForm">
+        <label>标题 *<input name="title" required maxlength="200" placeholder="例如：提交季度报告"></label>
+        <label>描述<textarea name="description" rows="3" placeholder="补充说明（可选）"></textarea></label>
+        <div class="row">
+          <label>紧急程度
+            <select name="urgency" id="urgencySelect"></select>
+          </label>
+          <label>截止时间
+            <input type="datetime-local" name="dueDate">
+          </label>
+        </div>
+        <p class="hint" id="limitHint"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" data-close>取消</button>
+          <button type="submit" class="btn primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 限制设置 弹窗 -->
+  <div class="modal" id="limitsModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>任务限制设置</h3>
+        <button class="icon" data-close>×</button>
+      </div>
+      <form id="limitsForm">
+        <label>最大任务总数（0 表示不限）<input type="number" name="maxTotal" min="0" step="1"></label>
+        <p class="hint">各紧急程度「同时存在的任务」上限（0 表示不限）：</p>
+        <div id="perUrgencyInputs" class="per-grid"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" data-close>取消</button>
+          <button type="submit" class="btn primary">保存限制</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 连接设置 弹窗 -->
+  <div class="modal" id="setupModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>连接设置</h3>
+        <button class="icon" data-close>×</button>
+      </div>
+      <form id="setupForm">
+        <label>Supabase 项目地址（URL）<input name="sbUrl" placeholder="https://xxxx.supabase.co"></label>
+        <label>Anon Key（sb_publishable_ 开头）<input name="sbKey" placeholder="sb_publishable_..."></label>
+        <label>看板密码（用于数据隔离，请牢记）<input name="pwd" type="password"></label>
+        <p class="hint">三项只保存在你本机浏览器，不会上传。相同密码 = 同一看板；不同密码 = 互相隔离的不同看板。</p>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" data-close>取消</button>
+          <button type="submit" class="btn primary">保存并连接</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="store.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
