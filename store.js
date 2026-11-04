@@ -66,7 +66,7 @@
   // ================= 模式二：Supabase 云端（免费） =================
   // 运行时从 localStorage 读取（网页「设置」里填的），不写死在代码里
   function sbCfg(k) {
-    try { return (typeof localStorage !== 'undefined' && localStorage[k]) || CFG['SUPABASE_' + k.toUpperCase()]; }
+    try { return (typeof localStorage !== 'undefined' && localStorage['sb_' + k]) || CFG['SUPABASE_' + k.toUpperCase()]; }
     catch (e) { return CFG['SUPABASE_' + k.toUpperCase()]; }
   }
   function boardHash() {
