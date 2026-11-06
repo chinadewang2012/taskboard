@@ -23,7 +23,8 @@
   }
 
   async function request(method, path, body, extraHeaders) {
-    const opts = { method, headers: Object.assign({}, extraHeaders || {}) };
+    // GitHub API 返回 Cache-Control: private,max-age=60；不禁用缓存会读到旧 sha，导致 PUT 连续 409
+    const opts = { method, headers: Object.assign({}, extraHeaders || {}), cache: 'no-store' };
     if (body !== undefined) {
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
@@ -44,9 +45,14 @@
       if (MODE === 'supabase' && res.status === 404) {
         msg = '数据表不存在：请确认已在 Supabase 执行 supabase.sql 建表，并在 SQL Editor 运行 NOTIFY pgrst, \'reload schema\'; 刷新缓存';
       } else if (MODE === 'github' && res.status === 401) {
-        msg = 'GitHub Token 无效或权限不足：请在「设置」里填写具有该仓库 Contents 读写权限的 Token';
+        msg = 'GitHub Token 无效或已过期：请在「设置」里填写具有该仓库 Contents 读写权限的新 Token';
+      } else if (MODE === 'github' && res.status === 403) {
+        msg = 'GitHub 拒绝访问(403)：多为 Token 权限范围不足或触发次级速率限制，请检查 Token 的 Contents 写权限并稍后重试';
+      } else if (MODE === 'github' && res.status === 409) {
+        msg = '版本冲突(409)：data.json 已被更新，请重试';
       }
-      throw new Error(msg + ' (HTTP ' + res.status + ')');
+      const apiDetail = data.message ? ('；API 原文：' + data.message) : '';
+      throw new Error(msg + apiDetail + ' (HTTP ' + res.status + ')');
     }
     return data;
   }
@@ -174,7 +180,8 @@
     const repo = CFG.GITHUB_REPO || '';
     const file = encodeURIComponent(CFG.GITHUB_DATA_PATH || 'data.json');
     const branch = CFG.GITHUB_BRANCH || 'main';
-    return `https://api.github.com/repos/${repo}/contents/${file}?ref=${branch}`;
+    // 时间戳参数作为 cache:'no-store' 的双保险，绕开中间层/CDN 对 GET 的缓存
+    return `https://api.github.com/repos/${repo}/contents/${file}?ref=${branch}&_ts=${Date.now()}`;
   }
   function ghHeaders(extra) {
     // 不设置 User-Agent：浏览器视其为禁止修改的请求头，设置后会干扰 CORS 预检
