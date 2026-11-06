@@ -207,6 +207,15 @@
 
   const githubAdapter = {
     _sha: null,
+    _queue: Promise.resolve(),
+
+    // 同一页面内所有读写串行排队：避免连续录入时多个 add() 拿到同一个旧 sha 互相踩踏
+    _serialize(fn) {
+      const run = this._queue.then(fn, fn);   // 前一个失败也不阻断后续
+      this._queue = run.catch(() => {});
+      return run;
+    },
+
     async readAll() {
       let data;
       try {
@@ -221,11 +230,15 @@
       catch (e) { throw new Error('仓库里的 data.json 解析失败（不是合法 JSON）：' + e.message); }
       all.tasks = Array.isArray(all.tasks) ? all.tasks : [];
       all.limits = all.limits || GH_DEFAULT_LIMITS;
-      cache.tasks = all.tasks; cache.limits = all.limits;  // 同步缓存，供限制校验使用
+      cache.tasks = all.tasks; cache.limits = all.limits;
       return all;
     },
-    async writeAll(obj, depth = 0) {
-      if (depth > 3) throw new Error('写入 GitHub 仓库冲突过多，请稍后重试');
+
+    // 原子提交：每次尝试都重新读最新数据 + 重放变更，绝不用旧快照覆盖
+    async _commit(mutate, depth = 0) {
+      const MAX_RETRY = 8;
+      const all = await this.readAll();        // 最新 sha + 最新数据
+      const obj = mutate(all);                 // 基于最新数据重放本次变更
       const body = {
         message: 'taskboard sync',
         content: utf8ToB64(JSON.stringify(obj, null, 2)),
@@ -234,56 +247,59 @@
       if (this._sha) body.sha = this._sha;
       try {
         const r = await request('PUT', ghContentPath().split('?')[0], body, ghHeaders());
-        this._sha = r.content && r.content.sha;
+        this._sha = (r.content && r.content.sha) || this._sha;
+        cache.tasks = obj.tasks; cache.limits = obj.limits;
+        return obj;
       } catch (e) {
-        if (/HTTP 409/.test(e.message)) {   // 版本冲突：重新拉取再写一次（最多 3 次）
-          this._sha = null;
-          await this.readAll();
-          return this.writeAll(obj, depth + 1);
+        if (/HTTP 409/.test(e.message) && depth < MAX_RETRY) {
+          // 退避后重读最新数据、重新应用变更，不再重发旧 obj
+          await new Promise(res => setTimeout(res, 120 * (depth + 1)));
+          return this._commit(mutate, depth + 1);
         }
         throw new Error('写入 GitHub 仓库失败：' + e.message);
       }
     },
+
+    _mutate(mutate) { return this._serialize(() => this._commit(mutate)); },
+
     async list() {
-      const all = await this.readAll();
+      const all = await this._serialize(() => this.readAll());
       const tasks = all.tasks;
       const sizeMb = +(new Blob([JSON.stringify(tasks)]).size / 1048576).toFixed(2);
       return { tasks, limits: all.limits, counts: computeCounts(tasks), dbSizeMb: sizeMb, maxDbMb: CFG.GITHUB_MAX_MB || 100 };
     },
     async add(t) {
-      const all = await this.readAll();
-      if ((t.status || 'pending') !== 'done') {
-        const v = violationFor(all.tasks, all.limits, t.urgency, null);
-        if (v) throw new Error(v);
-      }
       const task = Object.assign({ id: genId(), status: 'pending', createdAt: new Date().toISOString() }, t);
-      all.tasks.push(task);
-      await this.writeAll(all);
+      await this._mutate(all => {
+        if ((t.status || 'pending') !== 'done') {
+          const v = violationFor(all.tasks, all.limits, t.urgency, null);
+          if (v) throw new Error(v);
+        }
+        all.tasks.push(task);
+        return all;
+      });
       return { task };
     },
     async update(id, patch) {
-      const all = await this.readAll();
-      const task = all.tasks.find(t => t.id === id);
-      if (!task) throw new Error('任务不存在');
-      const merged = Object.assign({}, task, patch);
-      if (merged.status !== 'done') {
-        const v = violationFor(all.tasks, all.limits, merged.urgency, id);
-        if (v) throw new Error(v);
-      }
-      Object.assign(task, patch);
-      await this.writeAll(all);
-      return { task };
+      const all = await this._mutate(allData => {
+        const task = allData.tasks.find(t => t.id === id);
+        if (!task) throw new Error('任务不存在');
+        const merged = Object.assign({}, task, patch);
+        if (merged.status !== 'done') {
+          const v = violationFor(allData.tasks, allData.limits, merged.urgency, id);
+          if (v) throw new Error(v);
+        }
+        Object.assign(task, patch);
+        return allData;
+      });
+      return { task: all.tasks.find(t => t.id === id) };
     },
     async remove(id) {
-      const all = await this.readAll();
-      all.tasks = all.tasks.filter(t => t.id !== id);
-      await this.writeAll(all);
+      await this._mutate(all => { all.tasks = all.tasks.filter(t => t.id !== id); return all; });
       return { ok: true };
     },
     async setLimits(l) {
-      const all = await this.readAll();
-      all.limits = l;
-      await this.writeAll(all);
+      await this._mutate(all => { all.limits = l; return all; });
       return { limits: l };
     }
   };
