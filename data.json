@@ -1,16 +1,5 @@
 {
-  "tasks": [
-    {
-      "id": "verify-1",
-      "title": "验证中文任务 ✓",
-      "description": "端到端往返",
-      "urgency": 3,
-      "due_date": null,
-      "status": "pending",
-      "created_at": "2026-11-06T15:28:38.216Z",
-      "completed_at": null
-    }
-  ],
+  "tasks": [],
   "limits": {
     "maxTotal": 200,
     "perUrgency": {
