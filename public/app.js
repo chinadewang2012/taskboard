@@ -1,14 +1,34 @@
 'use strict';
 
-// ===== 运行时连接设置（URL / anon key / 看板密码 都只存在本机浏览器，不写进代码）=====
+// ===== 运行时连接设置（凭据只存本机浏览器 localStorage，不写进代码）=====
 async function sha256(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function isGithubMode() {
+  return !!(window.APP_CONFIG && window.APP_CONFIG.STORAGE === 'github');
 }
 function openSetupModal(resolve) {
   const modal = $('#setupModal');
   modal.classList.add('show');
   const form = $('#setupForm');
+  const gh = isGithubMode();
+  form.querySelectorAll('[data-sb]').forEach(el => { el.style.display = gh ? 'none' : ''; });
+  form.querySelectorAll('[data-gh]').forEach(el => { el.style.display = gh ? '' : 'none'; });
+
+  if (gh) {
+    form.ghToken.value = localStorage.getItem('github_token') || '';
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const token = form.ghToken.value.trim();
+      if (!token) { toast('请填写 GitHub Token', 'err'); return; }
+      localStorage.setItem('github_token', token);
+      modal.classList.remove('show');
+      resolve();
+    };
+    return;
+  }
+
   form.sbUrl.value = localStorage.getItem('sb_url') || '';
   form.sbKey.value = localStorage.getItem('sb_key') || '';
   form.pwd.value = '';  // 出于安全，不回显明文密码
@@ -27,7 +47,9 @@ function openSetupModal(resolve) {
 }
 function ensureSetup() {
   return new Promise(resolve => {
-    const ok = localStorage.getItem('sb_url') && localStorage.getItem('sb_key') && localStorage.getItem('board_hash');
+    const ok = isGithubMode()
+      ? localStorage.getItem('github_token')
+      : (localStorage.getItem('sb_url') && localStorage.getItem('sb_key') && localStorage.getItem('board_hash'));
     if (ok) return resolve();
     openSetupModal(resolve);
   });
