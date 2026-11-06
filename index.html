@@ -104,10 +104,12 @@
         <button class="icon" data-close>×</button>
       </div>
       <form id="setupForm">
-        <label>Supabase 项目地址（URL）<input name="sbUrl" placeholder="https://xxxx.supabase.co"></label>
-        <label>Anon Key（sb_publishable_ 开头）<input name="sbKey" placeholder="sb_publishable_..."></label>
-        <label>看板密码（用于数据隔离，请牢记）<input name="pwd" type="password"></label>
-        <p class="hint">三项只保存在你本机浏览器，不会上传。相同密码 = 同一看板；不同密码 = 互相隔离的不同看板。</p>
+        <label data-sb>Supabase 项目地址（URL）<input name="sbUrl" placeholder="https://xxxx.supabase.co"></label>
+        <label data-sb>Anon Key（sb_publishable_ 开头）<input name="sbKey" placeholder="sb_publishable_..."></label>
+        <label data-sb>看板密码（用于数据隔离，请牢记）<input name="pwd" type="password"></label>
+        <p class="hint" data-sb>三项只保存在你本机浏览器，不会上传。相同密码 = 同一看板；不同密码 = 互相隔离的不同看板。</p>
+        <label data-gh style="display:none">GitHub Token（需该仓库 Contents 读写权限）<input name="ghToken" type="password" placeholder="github_pat_... 或 ghp_..."></label>
+        <p class="hint" data-gh style="display:none">Token 只保存在你本机浏览器，不会上传或写进代码。数据存为仓库里的 data.json（公开仓库内容可被他人读取）。</p>
         <div class="modal-actions">
           <button type="button" class="btn ghost" data-close>取消</button>
           <button type="submit" class="btn primary">保存并连接</button>
