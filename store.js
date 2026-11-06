@@ -32,15 +32,19 @@
     try {
       res = await fetch(path, opts);
     } catch (e) {
-      throw new Error(MODE === 'supabase'
-        ? '无法连接云端数据库：请检查网络，以及 config.js 里的 SUPABASE_URL / SUPABASE_KEY'
-        : '无法连接数据服务：请确认已在你电脑上启动 server.js（http://localhost:3000）');
+      throw new Error(MODE === 'github'
+        ? '无法连接 GitHub API：请检查网络，以及「设置」里的 GitHub Token 是否有该仓库 Contents 读写权限'
+        : MODE === 'supabase'
+          ? '无法连接云端数据库：请检查网络，以及 config.js 里的 SUPABASE_URL / SUPABASE_KEY'
+          : '无法连接数据服务：请确认已在你电脑上启动 server.js（http://localhost:3000）');
     }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       let msg = (data.error || data.message || '请求失败');
       if (MODE === 'supabase' && res.status === 404) {
         msg = '数据表不存在：请确认已在 Supabase 执行 supabase.sql 建表，并在 SQL Editor 运行 NOTIFY pgrst, \'reload schema\'; 刷新缓存';
+      } else if (MODE === 'github' && res.status === 401) {
+        msg = 'GitHub Token 无效或权限不足：请在「设置」里填写具有该仓库 Contents 读写权限的 Token';
       }
       throw new Error(msg + ' (HTTP ' + res.status + ')');
     }
@@ -173,10 +177,10 @@
     return `https://api.github.com/repos/${repo}/contents/${file}?ref=${branch}`;
   }
   function ghHeaders(extra) {
+    // 不设置 User-Agent：浏览器视其为禁止修改的请求头，设置后会干扰 CORS 预检
     return Object.assign({
       Authorization: `Bearer ${((typeof localStorage !== 'undefined' && localStorage.github_token) || CFG.GITHUB_TOKEN)}`,
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'taskboard'
+      Accept: 'application/vnd.github+json'
     }, extra || {});
   }
   // base64 编解码需兼容中文（atob/btoa 只认 Latin1，故经 TextEncoder/Decoder 中转）
