@@ -20,13 +20,15 @@
     //  'local'    数据在你电脑（需跑 server.js）
     //  'supabase' 数据放 Supabase 云端（在网页「设置」里填连接，关机可用）—— 推荐
     //  'github'   数据放你的 GitHub 仓库（备用）
-    STORAGE: 'supabase',
+    STORAGE: 'github',
 
     // ---- local 模式用 ----
     API_BASE: isLocalPage ? '' : LOCAL_API,
 
-    // ---- github 模式用（备用）----
-    GITHUB_REPO: '',
+    // ---- github 模式用 ----
+    // GITHUB_TOKEN 故意留空：在网页「设置」里填，只存本机浏览器 localStorage，绝不写进代码
+    // （config.js 是公开仓库里的公开文件，写死 token 等于把仓库写权限公开）。
+    GITHUB_REPO: 'chinadewang2012/taskboard',
     GITHUB_TOKEN: '',
     GITHUB_DATA_PATH: 'data.json',
     GITHUB_BRANCH: 'main',
